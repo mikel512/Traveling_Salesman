@@ -108,6 +108,7 @@ void Map::print_graph()
 Node* Map::structure_mst()
 {
 	Node* root = new Node;
+	root->degree = 0;
 	// get "roots:"
 	unordered_map<int, vector<int>> roots;
 	for (int i = 1; i < n; i++)
@@ -116,6 +117,7 @@ Node* Map::structure_mst()
 	}
 	helper(root, roots, 0);
 
+	mst_root = root;
 	return root;
 }
 // tree builder helper
@@ -133,9 +135,12 @@ void Map::helper(Node* root, unordered_map<int, vector<int>> data, int i) {
 	// Else iterate and recur to add children
 	for (int j = 0; j < data[i].size(); j++)
 	{
+		// new child nodes have a degree of at least 1
 		Node* new_child = new Node;
+		new_child->degree = 1;
 		helper(new_child, data, data[i][j]);
 		root->children.push_back(new_child);
+		root->degree++;
 	}
 	return;
 }
@@ -190,7 +195,181 @@ int Map::get_mst_distance(vector<int> path)
 	}
 	return count;
 }
+// Make Minium Weight perfect matching set of Edges
+void Map::get_minium_weight_perfect_matching()
+{
+	// get set of odd degree vertices O
+	// by handshaking lemma, size of set O should be even
+	get_odd_edges_from_mst();
 
+	// make subgraph from set O
+	make_subgraph();
+
+	// find all edges of subgraph
+	auto edges = get_subgraph_edges();
+
+	// set minimum weight perfect matching
+	set_mwpm(edges);
+
+}
+void Map::set_mwpm(vector<tuple<int, int>> edge_set)
+{
+	// amount of edges to find = O/2
+	vector<tuple <int, int>> mwpm;
+	int weight = INT16_MAX;
+	for (int i = 0; i < edge_set.size(); i++)
+	{
+		vector<tuple <int, int>> temp;
+		auto edge = edge_set[i];
+		edge_set.erase(edge_set.begin() + i);
+		temp.push_back(edge);
+		for (int j = 0;j < edge_set.size(); j++)
+		{
+			// check if edges are not incidental
+			if (get<0>(edge) == get<0>(edge_set[j]) ||
+				get<1>(edge) == get<0>(edge_set[j]) ||
+				get<1>(edge) == get<1>(edge_set[j]) ||
+				get<0>(edge) == get<1>(edge_set[j])
+				)
+			{
+				continue;
+			}
+			temp.push_back(edge_set[j]);
+			// if all edges acquired get weight
+			if (temp.size() == odd_vertices.size() / 2)
+			{
+				int current_weight = get_total_weight(temp);
+				if (current_weight < weight)
+				{
+					weight = current_weight;
+					mwpm = temp;
+				}
+			}
+
+		}
+		edge_set.insert(edge_set.begin() + i, edge);
+	}
+	for (auto i : mwpm) 
+	{
+		cout << get<0>(i) << get<1>(i) << " ";
+	}
+	cout << endl;
+
+	return;
+}
+
+int Map::get_total_weight(vector<tuple<int, int>> incident_edges)
+{
+	int count = 0;
+	for (auto i : incident_edges)
+	{
+		count += graph[get<0>(i)][get<1>(i)];
+	}
+	return count;
+}
+
+vector<tuple<int, int>> Map::get_subgraph_edges()
+{
+	// using set O find unique pairs
+
+	// set of unique pairs = (size(O) - 1)!
+	// # of pairs in the end = size(O)/2
+	vector<tuple <int, int>> edge_set_M;
+	// get unique pairs with edge length
+	for (int i = 0; i < odd_vertices.size(); i++)
+	{
+		int vertex = odd_vertices[i];
+		odd_vertices.erase(odd_vertices.begin() + i);
+		for (int j = 0;j < odd_vertices.size(); j++)
+		{
+			tuple<int, int> one = make_tuple(vertex, odd_vertices[j]);
+			tuple<int, int> two = make_tuple(odd_vertices[j], vertex);
+			// check if pair already exists in map
+			if (find(edge_set_M.begin(), edge_set_M.end(), one) != edge_set_M.end() ||
+				find(edge_set_M.begin(), edge_set_M.end(), two) != edge_set_M.end())
+			{
+				continue;
+			}
+			edge_set_M.push_back(one);
+		}
+		odd_vertices.insert(odd_vertices.begin() + i, vertex);
+	}
+	for (auto i : edge_set_M) {
+		cout << get<0>(i) << get<1>(i) << " ";
+	}
+	cout << endl;
+	return edge_set_M;
+}
+void Map::make_subgraph()
+{
+	int subgraph_size = odd_vertices.size();
+	// initialize subgraph first
+	subgraph = new int* [subgraph_size];
+	for (int i = 0; i < subgraph_size; i++) {
+		subgraph[i] = new int[subgraph_size];
+		for (int j = 0; j < subgraph_size; j++) {
+			subgraph[i][j] = 0;
+		}
+	}
+	// fill graph
+	for (int i = 0; i < subgraph_size; i++)
+	{
+		for (int j = 0; j < subgraph_size; j++)
+		{
+			subgraph[i][j] = subgraph[j][i] = subgraph_distance(i, j);
+		}
+	}
+	// Print subgraph:
+	cout << "Printing subgraph: \n";
+	for (int i = 0; i < subgraph_size; i++)
+	{
+		for (int j = 0; j < subgraph_size; j++)
+		{
+			cout << subgraph[i][j] << " ";
+		}
+		cout << endl;
+	}
+	cout << endl;
+
+}
+int Map::subgraph_distance(int start, int end)
+{
+	int first = odd_vertices[start];
+	int second = odd_vertices[end];
+	// use overlaying graph to get distances
+	int distance = graph[second][first];
+	return distance;
+}
+void Map::get_odd_edges_from_mst()
+{
+	vector<int> set_O;
+	// traverse mst to find odd vertices
+	traverse_mst_finding_odds(mst_root, set_O);
+	// Print:
+	cout << "Printing set O:\n";
+	for (auto i : set_O)
+	{
+		cout << i << " ";
+	}
+	cout << endl;
+	odd_vertices = set_O;
+}
+void Map::traverse_mst_finding_odds(Node* n, vector<int>& set)
+{
+	if (n == NULL)
+	{
+		return;
+	}
+	// if node degree is odd
+	if (n->degree % 2 == 1)
+	{
+		set.push_back(n->city);
+	}
+	for (auto child : n->children)
+	{
+		traverse_mst_finding_odds(child, set);
+	}
+}
 // constructor
 Map::Map(Cities city_map)
 {

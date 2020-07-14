@@ -23,6 +23,7 @@ typedef vector<City> Cities;
 
 struct Node {
 	int city;
+	int degree;
 	vector<Node*> children; // connections
 };
 
@@ -35,6 +36,10 @@ private:
 	int* mst;
 	int* key_set; // holds the weights of the vertices;
 	bool* unused_vertices; // holds unused vertices
+	Node* mst_root;
+	int** subgraph;
+	vector<int> odd_vertices;
+	vector<tuple<int, int>> mwpf;
 
 	// Private functions
 	// adds a city to the vector <City> cities
@@ -61,6 +66,13 @@ private:
 	void print_mst();
 	// adds total distance from preorder traversal
 	int get_mst_distance(vector<int> path);
+	void traverse_mst_finding_odds(Node* n, vector<int>& set);
+	void get_odd_edges_from_mst();
+	void make_subgraph();
+	int subgraph_distance(int start, int end);
+	vector<tuple<int, int>> get_subgraph_edges();
+	void set_mwpm(vector<tuple<int, int>> edge_set);
+	int get_total_weight(vector<tuple<int, int>> incident_edges);
 public:
 	// Public properties
 	int n; // number of cities
@@ -69,6 +81,7 @@ public:
 
 
 	// Public functions
+	void get_minium_weight_perfect_matching();
 
 	// finds the distance between two cities
 	int distance(int start, int end);

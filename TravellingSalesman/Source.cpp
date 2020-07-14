@@ -82,6 +82,7 @@ int main()
 	city_vector_hardcoded.push_back(i);
 	Map TravelingSalesman = Map(city_vector_hardcoded);
 	TravelingSalesman.print_default_tests();
+	TravelingSalesman.get_minium_weight_perfect_matching();
 	generated_random_map.print_default_tests();
 
 	return 0;
